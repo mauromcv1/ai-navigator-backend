@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All AI Tools - AI Navigator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>All AI Tools</h1>
+            <p>Browse and filter our complete library of <strong id="tool-count">...</strong> AI tools.</p>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="header-link">← Home</a>
+            <a href="categories.html" class="header-link">Categories</a>
+            <!-- Os botões de login/logout serão adicionados aqui pelo app.js -->
+            <div class="font-controls">
+                <button id="font-decrease">A-</button>
+                <button id="font-reset">A</button>
+                <button id="font-increase">A+</button>
+            </div>
+            <button id="theme-toggle">🌙</button>
+        </nav>
+    </header>
+    <main>
+        <!-- Título dinâmico que será preenchido pelo JS -->
+        <div id="dynamic-title-container"></div>
+        
+        <div class="filter-container">
+            <div>
+                <label for="category-filter">Filter by Category:</label>
+                <select id="category-filter"></select>
+            </div>
+            <div>
+                <label for="search-input">Search by Name:</label>
+                <input type="text" id="search-input" placeholder="Enter AI name...">
+            </div>
+        </div>
+        <div class="ia-grid" id="ia-grid">
+            <p>Loading tools...</p>
+        </div>
+    </main>
+    <script src="app.js"></script>
+    <script src="tools.js"></script>
+</body>
+</html>

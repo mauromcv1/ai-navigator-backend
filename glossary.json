@@ -1,0 +1,32 @@
+[
+    {
+    "term": "LLM (Large Language Model)",
+    "definition": "It's the 'brain' behind AIs like ChatGPT and Gemini. An LLM is a type of artificial intelligence trained on a gigantic amount of text (books, articles, websites) to understand and generate human language in a coherent and contextual way.",
+    "example": "OpenAI's GPT-4 and Google's Gemini are examples of cutting-edge LLMs."
+    },
+    {
+        "term": "Generative AI",
+        "definition": "It's a branch of artificial intelligence focused on creating new and original content, instead of just analyzing or classifying existing data. It can generate texts, images, music, code, and much more.",
+        "example": "Midjourney, which creates images from text, and Suno AI, which composes music, are examples of Generative AI tools."
+    },
+    {
+        "term": "Token",
+        "definition": "It's the basic unit of information that an LLM processes. A token can be a word, a piece of a word (like 'ing' in 'walking') or a punctuation mark. The cost and capacity of many AIs are measured in tokens.",
+        "example": "The phrase 'Hello, world!' has 4 tokens: 'Hello', ',', ' world', '!'."
+    },
+    {
+        "term": "RAG (Retrieval-Augmented Generation)",
+        "definition": "It's an advanced technique where an LLM, before responding, queries an external database (like your company's documents or the latest news on the internet) to get updated and specific information. This makes the answers much more accurate and relevant.",
+        "example": "Perplexity AI uses RAG to search for information on the web and cite its sources."
+    },
+    {
+        "term": "Prompt",
+        "definition": "It's the instruction or question you give to a Generative AI for it to create something. The quality of the prompt ('prompt engineering') is crucial to getting a good result.",
+        "example": "A prompt for Midjourney could be: 'an astronaut cat surfing on a Saturn ring, Van Gogh style'."
+    },
+    {
+        "term": "Hallucination (AI)",
+        "definition": "This occurs when a Generative AI invents facts, sources, or information that seems plausible but is completely false. It's one of the biggest challenges of current LLMs.",
+        "example": "Asking ChatGPT to cite a scientific study and it invents the name of a researcher and the title of a non-existent article." 
+    }
+]

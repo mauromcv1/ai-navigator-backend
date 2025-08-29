@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel de Administração</title>
+    <!-- Não precisa do style.css externo, os estilos estão aqui dentro -->
+    <style>
+        /* Estilos Gerais do Painel */
+        body { font-family: sans-serif; background-color: #f2f2f2; margin: 0; }
+        .admin-container { max-width: 800px; margin: 2rem auto; padding: 2rem; background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #333; }
+        
+        /* Estilos da Navegação (Botão Voltar) */
+        .admin-nav {
+            text-align: center;
+            margin-bottom: 2rem;
+            margin-top: -1rem;
+        }
+        .nav-link {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #6c757d;
+            color: white !important; /* !important para garantir a cor */
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .nav-link:hover { background-color: #5a6268; }
+
+        /* Estilos das Seções e Formulários */
+        .form-section { margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e0e0e0; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-item { display: flex; flex-direction: column; }
+        .form-item label { margin-bottom: 0.5rem; font-weight: 600; color: #555; }
+        .form-item input, .form-item textarea, .form-item datalist {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        .span-2 { grid-column: span 2; }
+        
+        /* Estilos dos Botões */
+        button {
+            padding: 0.8rem 1.5rem;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        #add-tool-btn { background-color: #28a745; margin-top: 1rem; }
+        #batch-add-btn { background-color: #17a2b8; }
+        #auth-btn { background-color: #007bff; }
+        
+        /* Estilos da Lista de Ferramentas */
+        .tool-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0; border-bottom: 1px solid #e0e0e0; }
+        .tool-list-item:last-child { border-bottom: none; }
+        .delete-btn { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h1>Painel de Administração de IAs</h1>
+        
+        <!-- Botão de Voltar -->
+        <div class="admin-nav">
+            <a href="index.html" class="nav-link">← Voltar para o Consolidador</a>
+        </div>
+
+        <!-- Seção de Autenticação -->
+        <div id="auth-section">
+            <p>Por favor, insira a chave secreta para continuar.</p>
+            <input type="password" id="secret-key" placeholder="Chave Secreta">
+            <button id="auth-btn">Entrar</button>
+        </div>
+
+        <!-- Conteúdo Principal (Escondido) -->
+        <div id="content-section" style="display: none;">
+            <div class="form-section">
+                <h2>Adicionar Nova Ferramenta</h2>
+                <div class="form-grid">
+                    <div class="form-item"><label for="name">Nome:</label><input type="text" id="name"></div>
+                    <div class="form-item"><label for="category-input">Categoria:</label><input list="category-suggestions" id="category-input"><datalist id="category-suggestions"></datalist></div>
+                    <div class="form-item span-2"><label for="description">Descrição:</label><textarea id="description" rows="3"></textarea></div>
+                    <div class="form-item"><label for="price">price:</label><input type="text" id="price"></div>
+                    <div class="form-item"><label for="link">Link:</label><input type="text" id="link"></div>
+                    <div class="form-item"><label for="logo_url">URL do Logo:</label><input type="text" id="logo_url"></div>
+                    <div class="form-item"><label for="base_popularity">Popularidade:</label><input type="number" id="base_popularity" value="50"></div>
+                </div>
+                <button id="add-tool-btn">Adicionar Ferramenta</button>
+            </div>
+            
+            <div class="form-section">
+                <h2>Adicionar em Lote</h2>
+                <p>Formato: <strong>Nome;Categoria;Descrição;price;Link;Popularidade;logo_url (opcional)</strong></p>
+                <div class="form-item span-2"><textarea id="batch-data" rows="8"></textarea></div>
+                <button id="batch-add-btn">Adicionar em Lote</button>
+            </div>
+
+            <div class="form-section">
+                <h2>Ferramentas Atuais</h2>
+                <div id="tools-list"></div>
+            </div>
+        </div>
+    </div>
+    <script src="admin.js"></script>
+</body>
+</html>

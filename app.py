@@ -19,6 +19,10 @@ from flask_bcrypt import Bcrypt
 # --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
 load_dotenv()
 app = Flask(__name__)
+# CONFIGURAÇÃO DE COOKIES PARA PRODUÇÃO
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
 cors = CORS(app, resources={
     r"/api/*": {

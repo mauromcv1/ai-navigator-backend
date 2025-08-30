@@ -20,7 +20,12 @@ from flask_bcrypt import Bcrypt
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
-CORS(app, supports_credentials=True, origins=["*"])
+cors = CORS(app, resources={
+    r"/api/*": {
+        "origins": ["https://ainavigator-tools.netlify.app", "http://127.0.0.1:8000"],
+        "supports_credentials": True
+    }
+})
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)

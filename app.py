@@ -20,7 +20,7 @@ from flask_bcrypt import Bcrypt
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, origins=["*"])
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)

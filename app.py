@@ -20,14 +20,14 @@ from flask_bcrypt import Bcrypt
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
-
-# --- CONFIGURAÇÃO DE CORS PARA PRODUÇÃO E DESENVOLVIMENTO ---
-FRONTEND_URL = "https://ainavigator-tools.netlify.app"
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": [FRONTEND_URL, "http://127.0.0.1:8000"]}})
-
+CORS(app, supports_credentials=True)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
+
+# --- CONFIGURAÇÃO DE CORS PARA PRODUÇÃO E DESENVOLVIMENTO ---
+FRONTEND_URL = "https://ainavigator-tools.netlify.app"
+
 
 # --- MODELO E CARREGADOR DE USUÁRIO ---
 class User(UserMixin):

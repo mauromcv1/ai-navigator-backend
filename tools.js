@@ -64,10 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="card-header">
                         <img src="${tool.logo_url || 'logos/news_placeholder.png'}" alt="" class="tool-logo">
                         <h2>${tool.name}</h2>
-                        <button class="bookmark-btn ${isFavorited ? 'favorited' : ''}" data-id="${tool.id}" title="Add to Workspace">☆</button>
-                    </div>
-                    <p class="tool-description">${tool.description}</p>
-                    <p class="price">Price: ${tool.price}</p>
+                        #<!-- BOTÃO VAZIO, O CSS CUIDA DO RESTO -->
+                        <button class="bookmark-btn ${isFavorited ? 'favorited' : ''}" data-id="${tool.id}" title="Add to Workspace"></button>                    </div>
+                        <p class="tool-description">${tool.description}</p>
+                        <p class="price">Price: ${tool.price}</p>
                     <div class="vote-section">
                         <button class="like-btn" data-id="${tool.id}" ${hasVoted ? 'disabled' : ''}>👍</button>
                         <span id="votes-${tool.id}">${tool.votes}</span>

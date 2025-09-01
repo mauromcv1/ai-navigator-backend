@@ -5,13 +5,13 @@ import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-#import feedparser
+import feedparser
 from time import time
 import requests
-#from serpapi import GoogleSearch
-#from PIL import Image
-#import io
-#import ssl
+from serpapi import GoogleSearch
+from PIL import Image
+import io
+import ssl
 from datetime import datetime
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
@@ -19,24 +19,21 @@ from flask_bcrypt import Bcrypt
 # --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
 load_dotenv()
 app = Flask(__name__)
-# CONFIGURAÇÃO DE COOKIES PARA PRODUÇÃO
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
-cors = CORS(app, resources={
-    r"/api/*": {
-        "origins": ["https://ainavigator-tools.netlify.app", "http://127.0.0.1:8000"],
-        "supports_credentials": True
-    }
-})
+
+# --- CONFIGURAÇÃO DE CORS E COOKIES "CAMALEÃO" ---
+IS_PRODUCTION = os.getenv('RENDER', False)
+if IS_PRODUCTION:
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    origins = ["https://ainavigator-tools.netlify.app"]
+else:
+    origins = ["http://127.0.0.1:8000"]
+
+CORS(app, origins=origins, supports_credentials=True)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
-
-# --- CONFIGURAÇÃO DE CORS PARA PRODUÇÃO E DESENVOLVIMENTO ---
-FRONTEND_URL = "https://ainavigator-tools.netlify.app"
-
 
 # --- MODELO E CARREGADOR DE USUÁRIO ---
 class User(UserMixin):
@@ -63,37 +60,37 @@ def sanitize_filename(name):
     name = re.sub(r'[\s_-]+', '_', name)
     return name.strip('_')
 
-#def find_image_in_entry(entry):
-#    image_url = None
-#    if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail: image_url = entry.media_thumbnail[0].get('url')
-#    elif hasattr(entry, 'media_content') and entry.media_content:
-#        for media in entry.media_content:
-#            if 'url' in media and media.get('medium') == 'image': image_url = media.get('url'); break
-#    if not image_url and hasattr(entry, 'summary'):
-#        matches = re.search(r'<img[^>]+src="([^">]+)"', entry.summary)
-#        if matches: image_url = matches.group(1)
-#    return image_url
+def find_image_in_entry(entry):
+    image_url = None
+    if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail: image_url = entry.media_thumbnail[0].get('url')
+    elif hasattr(entry, 'media_content') and entry.media_content:
+        for media in entry.media_content:
+            if 'url' in media and media.get('medium') == 'image': image_url = media.get('url'); break
+    if not image_url and hasattr(entry, 'summary'):
+        matches = re.search(r'<img[^>]+src="([^">]+)"', entry.summary)
+        if matches: image_url = matches.group(1)
+    return image_url
 
-#def find_and_download_logo(tool_name):
-#    serpapi_key = os.getenv("SERPAPI_API_KEY")
-#    if not serpapi_key: return None
-#    print(f"🤖 Auto-buscando logo para: {tool_name}...")
-#    params = {"engine": "google_images", "q": f"{tool_name} logo png transparent", "api_key": serpapi_key, "tbs": "ic:trans"}
-#    try:
-#        search = GoogleSearch(params)
-#        results = search.get_dict()
-#        if "images_results" in results and len(results["images_results"]) > 0:
-#            image_url = results["images_results"][0]["original"]
-#            response = requests.get(image_url, stream=True, timeout=10)
-#            if response.status_code == 200:
-#                filename = sanitize_filename(tool_name) + ".png"
-#                if not os.path.exists('logos'): os.makedirs('logos')
-#                filepath = os.path.join('logos', filename)
-#                with open(filepath, 'wb') as f: f.write(response.content)
-#                return filepath.replace('\\', '/')
-#    except Exception as e:
-#        print(f"❌ Erro na busca de logo para '{tool_name}': {e}")
-#    return None
+def find_and_download_logo(tool_name):
+    serpapi_key = os.getenv("SERPAPI_API_KEY")
+    if not serpapi_key: return None
+    print(f"🤖 Auto-buscando logo para: {tool_name}...")
+    params = {"engine": "google_images", "q": f"{tool_name} logo png transparent", "api_key": serpapi_key, "tbs": "ic:trans"}
+    try:
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        if "images_results" in results and len(results["images_results"]) > 0:
+            image_url = results["images_results"][0]["original"]
+            response = requests.get(image_url, stream=True, timeout=10)
+            if response.status_code == 200:
+                filename = sanitize_filename(tool_name) + ".png"
+                if not os.path.exists('logos'): os.makedirs('logos')
+                filepath = os.path.join('logos', filename)
+                with open(filepath, 'wb') as f: f.write(response.content)
+                return filepath.replace('\\', '/')
+    except Exception as e:
+        print(f"❌ Erro na busca de logo para '{tool_name}': {e}")
+    return None
 
 # --- ROTAS DA API PÚBLICA ---
 @app.route('/api/tools', methods=['GET'])
@@ -154,47 +151,42 @@ NEWS_FEEDS = {
     'Ben\'s Bites': 'https://bensbites.beehiiv.com/rss',
 }
 news_cache = {'articles': [], 'last_updated': 0}
-#@app.route('/api/news', methods=['GET'])
-#def get_news():
-#    if (time() - news_cache['last_updated']) < 1800 and news_cache['articles']:
-#        return jsonify(news_cache['articles'])
-#   print("🔥 Forçando busca de notícias frescas...")
-#    all_articles = []
-#    user_agent_header = {'User-Agent': 'Mozilla/5.0'}
-#    for source, url in NEWS_FEEDS.items():
-#        try:
-#            response = requests.get(url, headers=user_agent_header, timeout=10)
-#            feed = feedparser.parse(response.content)
-#            if not feed.entries: continue
-#            for entry in feed.entries[:5]:
-#                image_url = find_image_in_entry(entry)
-#                all_articles.append({'source': source, 'title': entry.title, 'link': entry.link, 'published': entry.get('published', ''), 'image_url': image_url or 'logos/news_placeholder.png'})
-#        except Exception as e:
-#            print(f"Erro ao buscar notícias de {source}: {e}")
-#    if all_articles:
-#        news_cache['articles'] = all_articles
-#        news_cache['last_updated'] = time()
-#    return jsonify(news_cache['articles'])
+@app.route('/api/news', methods=['GET'])
+def get_news():
+    if (time() - news_cache['last_updated']) < 1800 and news_cache['articles']:
+        return jsonify(news_cache['articles'])
+    print("🔥 Forçando busca de notícias frescas...")
+    all_articles = []
+    user_agent_header = {'User-Agent': 'Mozilla/5.0'}
+    for source, url in NEWS_FEEDS.items():
+        try:
+            response = requests.get(url, headers=user_agent_header, timeout=10)
+            feed = feedparser.parse(response.content)
+            if not feed.entries: continue
+            for entry in feed.entries[:5]:
+                image_url = find_image_in_entry(entry)
+                all_articles.append({'source': source, 'title': entry.title, 'link': entry.link, 'published': entry.get('published', ''), 'image_url': image_url or 'logos/news_placeholder.png'})
+        except Exception as e:
+            print(f"Erro ao buscar notícias de {source}: {e}")
+    if all_articles:
+        news_cache['articles'] = all_articles
+        news_cache['last_updated'] = time()
+    return jsonify(news_cache['articles'])
 
 # --- ROTAS DE AUTENTICAÇÃO ---
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json
     username = data.get('username')
-    email = data.get('email') # <-- Pega o novo campo
+    email = data.get('email')
     password = data.get('password')
-
     if not username or not password or not email:
         return jsonify({'success': False, 'message': 'Username, email, and password are required.'}), 400
-        
     conn = get_db_connection()
-    user_exists = conn.execute('SELECT * FROM users WHERE username = ? OR email = ?', (username, email)).fetchone()
-    if user_exists:
+    if conn.execute('SELECT * FROM users WHERE username = ? OR email = ?', (username, email)).fetchone():
         conn.close()
         return jsonify({'success': False, 'message': 'Username or email already exists.'}), 409
-        
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    # Adiciona o email ao INSERT
     conn.execute('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)', (username, email, hashed_password))
     conn.commit()
     conn.close()
@@ -212,7 +204,7 @@ def login():
         user = User(id=user_data['id'], username=user_data['username'])
         login_user(user, remember=True)
         return jsonify({'success': True, 'message': 'Login successful!', 'username': user.username})
-    return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
+    return jsonify({'success': False, 'message': 'Invalid username or password.'}), 401
 
 @app.route('/api/logout', methods=['POST'])
 @login_required
@@ -265,20 +257,20 @@ def toggle_favorite(tool_id):
 def add_tool():
     data = request.json
     logo_path = data.get('logo_url', '')
-#    if not logo_path:
-#        logo_path = find_and_download_logo(data['name'])
-#    date_added_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#    conn = get_db_connection()
-#    try:
-#        conn.execute(
-#            'INSERT INTO tools (name, category, description, price, link, base_popularity, logo_url, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-#            (data['name'], data['category'], data['description'], data['price'], data['link'], data.get('base_popularity', 50), logo_path or '', date_added_str)
-#        )
-#        conn.commit()
-#    except sqlite3.IntegrityError as e:
-#        conn.close()
-#        return jsonify({'error': 'Uma ferramenta com este nome já existe.'}), 409
-#   conn.close()
+    if not logo_path:
+        logo_path = find_and_download_logo(data['name'])
+    date_added_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            'INSERT INTO tools (name, category, description, price, link, base_popularity, logo_url, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            (data['name'], data['category'], data['description'], data['price'], data['link'], data.get('base_popularity', 50), logo_path or '', date_added_str)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        return jsonify({'error': 'Uma ferramenta com este nome já existe.'}), 409
+    conn.close()
     return jsonify({'success': True, 'logo_found': bool(logo_path)}), 201
 
 @app.route('/api/admin/tools/batch-add', methods=['POST'])
@@ -295,12 +287,12 @@ def batch_add_tools():
             if len(parts) >= 6:
                 name, category, description, price, link, popularity = parts[:6]
                 logo_url = parts[6] if len(parts) > 6 else ''
-                #if not logo_url:
-                    #logo_url = find_and_download_logo(name)
-                #conn.execute(
-                #    'INSERT OR IGNORE INTO tools (name, category, description, price, link, base_popularity, logo_url, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                #    (name, category, description, price, link, int(popularity), logo_url or '', date_added_str)
-                #)
+                if not logo_url:
+                    logo_url = find_and_download_logo(name)
+                conn.execute(
+                    'INSERT OR IGNORE INTO tools (name, category, description, price, link, base_popularity, logo_url, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    (name, category, description, price, link, int(popularity), logo_url or '', date_added_str)
+                )
                 tools_added += 1
                 if logo_url: logos_found += 1
         except Exception as e:
@@ -318,5 +310,7 @@ def delete_tool(tool_id):
     conn.close()
     return jsonify({'success': True})
 
+# --- INICIA O SERVIDOR ---
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=(not IS_PRODUCTION), host='0.0.0.0', port=port)

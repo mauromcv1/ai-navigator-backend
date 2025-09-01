@@ -4,3 +4,8 @@ Flask-Bcrypt
 Flask-Login
 gunicorn
 python-dotenv
+feedparser
+requests
+serpapi
+Pillow
+gevent

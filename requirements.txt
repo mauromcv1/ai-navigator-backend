@@ -6,6 +6,6 @@ gunicorn
 python-dotenv
 feedparser
 requests
-serpapi
+google-search-results
 Pillow
 gevent

@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import re
 import json
 from flask import Flask, request, jsonify
@@ -10,12 +9,6 @@ from datetime import datetime
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 from sqlalchemy import create_engine, text
-import feedparser
-import requests
-from serpapi import GoogleSearch
-from PIL import Image
-import io
-import ssl
 
 # --- INICIALIZAÇÃO E CONFIGURAÇÃO ---
 load_dotenv()
@@ -50,44 +43,6 @@ def load_user(user_id):
     with engine.connect() as conn:
         user_data = conn.execute(text("SELECT * FROM users WHERE id = :id"), {'id': int(user_id)}).fetchone()
     return User(id=user_data.id, username=user_data.username) if user_data else None
-
-# --- FUNÇÕES AUXILIARES GLOBAIS ---
-def sanitize_filename(name):
-    name = name.lower(); name = re.sub(r'[^\w\s-]', '', name); name = re.sub(r'[\s_-]+', '_', name); return name.strip('_')
-
-def find_image_in_entry(entry):
-    image_url = None
-    if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail: image_url = entry.media_thumbnail[0].get('url')
-    elif hasattr(entry, 'media_content') and entry.media_content:
-        for media in entry.media_content:
-            if 'url' in media and media.get('medium') == 'image': image_url = media.get('url'); break
-    if not image_url and hasattr(entry, 'summary'):
-        matches = re.search(r'<img[^>]+src="([^">]+)"', entry.summary)
-        if matches: image_url = matches.group(1)
-    return image_url
-
-def find_and_download_logo(tool_name):
-    serpapi_key = os.getenv("SERPAPI_API_KEY")
-    if not serpapi_key: return None
-    print(f"🤖 Auto-buscando logo para: {tool_name}...")
-    params = {"engine": "google_images", "q": f"{tool_name} logo png transparent", "api_key": serpapi_key, "tbs": "ic:trans"}
-    try:
-        search = GoogleSearch(params)
-        results = search.get_dict()
-        if "images_results" in results and len(results["images_results"]) > 0:
-            image_url = results["images_results"][0]["original"]
-            response = requests.get(image_url, stream=True, timeout=10)
-            if response.status_code == 200:
-                filename = sanitize_filename(tool_name) + ".png"
-                # Salva na pasta 'logos' que deve estar no disco persistente no Render
-                logos_dir = 'logos'
-                if not os.path.exists(logos_dir): os.makedirs(logos_dir)
-                filepath = os.path.join(logos_dir, filename)
-                with open(filepath, 'wb') as f: f.write(response.content)
-                return os.path.join('logos', filename).replace('\\', '/')
-    except Exception as e:
-        print(f"❌ Erro na busca de logo para '{tool_name}': {e}")
-    return None
 
 # --- ROTAS DA API PÚBLICA ---
 @app.route('/api/tools', methods=['GET'])

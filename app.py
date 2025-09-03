@@ -25,13 +25,12 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
 # --- CONFIGURAÇÃO DE AMBIENTE E BANCO DE DADOS "CAMALEÃO" ---
 IS_PRODUCTION = os.getenv('RENDER', False)
 DATABASE_URL = os.getenv('DATABASE_URL')
-
 if IS_PRODUCTION:
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    origins = ["https://getainavigator.app", "https://www.getainavigator.app"] # Adicione seu domínio do Netlify aqui
+    origins = ["https://getainavigator.app", "https://www.getainavigator.app"]
 else:
     DATABASE_URL = 'sqlite:///database.db'
     origins = ["http://127.0.0.1:8000"]
@@ -68,8 +67,6 @@ def find_image_in_entry(entry):
     return image_url
 
 def find_and_download_logo(tool_name):
-    # Esta função escreve em disco, o que pode não funcionar bem no Render (sistema efêmero)
-    # Mantida para desenvolvimento local e como exemplo
     serpapi_key = os.getenv("SERPAPI_API_KEY")
     if not serpapi_key: return None
     print(f"🤖 Auto-buscando logo para: {tool_name}...")
@@ -82,6 +79,7 @@ def find_and_download_logo(tool_name):
             response = requests.get(image_url, stream=True, timeout=10)
             if response.status_code == 200:
                 filename = sanitize_filename(tool_name) + ".png"
+                # Salva na pasta 'logos' que deve estar no disco persistente no Render
                 logos_dir = 'logos'
                 if not os.path.exists(logos_dir): os.makedirs(logos_dir)
                 filepath = os.path.join(logos_dir, filename)
@@ -170,13 +168,13 @@ def register():
     username, email, password = data.get('username'), data.get('email'), data.get('password')
     if not all([username, email, password]): return jsonify({'success': False, 'message': 'Missing fields'}), 400
     with engine.connect() as conn:
-        query = text("SELECT * FROM users WHERE username = :username OR email = :email")
+        query = text("SELECT id FROM users WHERE username = :username OR email = :email")
         if conn.execute(query, {'username': username, 'email': email}).fetchone():
             return jsonify({'success': False, 'message': 'Username or email already exists.'}), 409
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
         insert_query = text("INSERT INTO users (username, email, password_hash) VALUES (:username, :email, :password_hash)")
         conn.execute(insert_query, {'username': username, 'email': email, 'password_hash': hashed_password}); conn.commit()
-    return jsonify({'success': True, 'message': 'Registration successful! Please login.'})
+    return jsonify({'success': True, 'message': 'Registration successful!'})
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -185,8 +183,7 @@ def login():
     with engine.connect() as conn:
         user_data = conn.execute(text("SELECT * FROM users WHERE username = :username"), {'username': username}).fetchone()
     if user_data and bcrypt.check_password_hash(user_data.password_hash, password):
-        user = User(id=user_data.id, username=user_data.username)
-        login_user(user, remember=True)
+        user = User(id=user_data.id, username=user_data.username); login_user(user, remember=True)
         return jsonify({'success': True, 'username': user.username})
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
 
@@ -235,8 +232,10 @@ def toggle_favorite(tool_id):
 # --- ROTAS DO PAINEL DE ADMIN ---
 @app.route('/api/admin/tools/add', methods=['POST'])
 def add_tool():
-    data = request.json; logo_path = data.get('logo_url', '')
-    if not logo_path: logo_path = find_and_download_logo(data['name'])
+    data = request.json
+    logo_path = data.get('logo_url', '')
+    if not logo_path:
+        logo_path = find_and_download_logo(data['name'])
     date_added_str = datetime.now()
     with engine.connect() as conn:
         try:

@@ -22,6 +22,12 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
 
+# Cache para evitar muitas chamadas externas
+news_cache = {
+    "articles": [],
+    "last_updated": 0
+}
+
 # --- CONFIGURAÇÃO DE AMBIENTE E BANCO DE DADOS "CAMALEÃO" ---
 IS_PRODUCTION = os.getenv('RENDER', False)
 DATABASE_URL = os.getenv('DATABASE_URL')
@@ -33,9 +39,10 @@ if IS_PRODUCTION:
     origins = ["https://getainavigator.app", "https://www.getainavigator.app"]
 else:
     DATABASE_URL = 'sqlite:///database.db'
-    origins = ["http://127.0.0.1:8000"]
+    origins = ["http://localhost:5000"]
 
-CORS(app, origins=origins, supports_credentials=True)
+#CORS(app, origins=origins, supports_credentials=True)
+CORS(app, supports_credentials=True, origins="*")
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -65,6 +72,15 @@ def find_image_in_entry(entry):
     if not image_url and hasattr(entry, 'summary'):
         matches = re.search(r'<img[^>]+src="([^">]+)"', entry.summary)
         if matches: image_url = matches.group(1)
+
+    # --- NOVO CÓDIGO AQUI ---
+    if image_url:
+        # Padrão para verificar se a URL termina com uma extensão de imagem comum
+        image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.webp')
+        if not image_url.lower().endswith(image_extensions):
+            print(f"URL de imagem inválida encontrada: {image_url}. Ignorando.")
+            image_url = None
+    
     return image_url
 
 def find_and_download_logo(tool_name):
@@ -141,21 +157,35 @@ def get_glossary_terms():
 
 # --- ROTA DE NOTÍCIAS ---
 NEWS_FEEDS = {
-    'Reuters Technology': 'http://feeds.reuters.com/reuters/technologyNews',
-    'Google News (IA)': 'https://news.google.com/rss/search?q=Intelig%C3%AAncia+Artificial&hl=pt-BR&gl=BR&ceid=BR:pt-419',
-    'Ben\'s Bites': 'https://bensbites.beehiiv.com/rss',
+    "TechCrunch (AI)": "https://techcrunch.com/category/artificial-intelligence/feed/",
+    "Wired (AI)": "https://www.wired.com/feed/tag/ai/latest/rss"
 }
 
-news_cache = {'articles': [], 'last_updated': 0}
 @app.route('/api/news', methods=['GET'])
 def get_news():
     if (time() - news_cache['last_updated']) < 1800 and news_cache['articles']:
         return jsonify(news_cache['articles'])
-    all_articles = []
-    # ... (código da função get_news)
-    return jsonify(news_cache['articles'])
-    pass
 
+    all_articles = []
+    for source, url in NEWS_FEEDS.items():
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:10]:
+                all_articles.append({
+                    'title': entry.title,
+                    'link': entry.link,
+                    'summary': getattr(entry, 'summary', '')[:200] + '...',
+                    'published': getattr(entry, 'published', None),
+                    'source': source,
+                    'image': find_image_in_entry(entry)
+                })
+        except Exception as e:
+            print(f"❌ Erro ao buscar feed {source}: {e}")
+
+    news_cache['articles'] = all_articles
+    news_cache['last_updated'] = time()
+
+    return jsonify(news_cache['articles'])
 
 
 # --- ROTAS DE AUTENTICAÇÃO ---

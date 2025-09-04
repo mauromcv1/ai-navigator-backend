@@ -22,6 +22,7 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
 
+# --- CONFIGURAÇÃO DE AMBIENTE E BANCO DE DADOS "CAMALEÃO" ---
 IS_PRODUCTION = os.getenv('RENDER', False)
 DATABASE_URL = os.getenv('DATABASE_URL')
 if IS_PRODUCTION:
@@ -38,7 +39,7 @@ CORS(app, origins=origins, supports_credentials=True)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
 # --- MODELO E CARREGADOR DE USUÁRIO ---
 class User(UserMixin):
@@ -46,6 +47,7 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
+    if not engine: return None
     with engine.connect() as conn:
         user_data = conn.execute(text("SELECT * FROM users WHERE id = :id"), {'id': int(user_id)}).fetchone()
     return User(id=user_data.id, username=user_data.username) if user_data else None
@@ -90,6 +92,7 @@ def find_and_download_logo(tool_name):
 # --- ROTAS DA API PÚBLICA ---
 @app.route('/api/tools', methods=['GET'])
 def get_tools():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         result = conn.execute(text('SELECT * FROM tools ORDER BY votes DESC, base_popularity DESC, name ASC'))
         tools = result.fetchall()
@@ -97,6 +100,7 @@ def get_tools():
 
 @app.route('/api/tools/newest', methods=['GET'])
 def get_newest_tools():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         result = conn.execute(text('SELECT * FROM tools ORDER BY date_added DESC LIMIT 12'))
         tools = result.fetchall()
@@ -104,6 +108,7 @@ def get_newest_tools():
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         query = text("SELECT category, COUNT(id) as tool_count FROM tools GROUP BY category ORDER BY category ASC")
         result = conn.execute(query)
@@ -112,6 +117,7 @@ def get_categories():
 
 @app.route('/api/vote/<int:tool_id>', methods=['POST'])
 def vote(tool_id):
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         conn.execute(text('UPDATE tools SET votes = votes + 1 WHERE id = :id'), {'id': tool_id}); conn.commit()
         result = conn.execute(text('SELECT votes FROM tools WHERE id = :id'), {'id': tool_id}).fetchone()
@@ -119,6 +125,7 @@ def vote(tool_id):
 
 @app.route('/api/unvote/<int:tool_id>', methods=['POST'])
 def unvote(tool_id):
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         conn.execute(text('UPDATE tools SET votes = votes - 1 WHERE id = :id AND votes > 0'), {'id': tool_id}); conn.commit()
         result = conn.execute(text('SELECT votes FROM tools WHERE id = :id'), {'id': tool_id}).fetchone()
@@ -142,10 +149,14 @@ def get_news():
     all_articles = []
     # ... (código da função get_news)
     return jsonify(news_cache['articles'])
+    pass
+
+
 
 # --- ROTAS DE AUTENTICAÇÃO ---
 @app.route('/api/register', methods=['POST'])
 def register():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     data = request.json
     username, email, password = data.get('username'), data.get('email'), data.get('password')
     if not all([username, email, password]): return jsonify({'success': False, 'message': 'Missing fields'}), 400
@@ -160,6 +171,7 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     data = request.json
     username, password = data.get('username'), data.get('password')
     with engine.connect() as conn:
@@ -176,6 +188,7 @@ def logout():
 
 @app.route('/api/status')
 def status():
+    if not engine: return jsonify({'logged_in': False})
     if current_user.is_authenticated:
         return jsonify({'logged_in': True, 'username': current_user.username})
     return jsonify({'logged_in': False})
@@ -184,6 +197,7 @@ def status():
 @app.route('/api/favorites', methods=['GET'])
 @login_required
 def get_favorites():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         fav_rows = conn.execute(text('SELECT tool_id FROM favorites WHERE user_id = :uid'), {'uid': current_user.id}).fetchall()
     return jsonify({'favorites': [row.tool_id for row in fav_rows]})
@@ -191,6 +205,7 @@ def get_favorites():
 @app.route('/api/favorites/tools', methods=['GET'])
 @login_required
 def get_favorite_tools():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         query = text("SELECT t.* FROM tools t JOIN favorites f ON t.id = f.tool_id WHERE f.user_id = :uid")
         tools = conn.execute(query, {'uid': current_user.id}).fetchall()
@@ -199,6 +214,7 @@ def get_favorite_tools():
 @app.route('/api/favorites/toggle/<int:tool_id>', methods=['POST'])
 @login_required
 def toggle_favorite(tool_id):
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         query = text("SELECT * FROM favorites WHERE user_id = :uid AND tool_id = :tid")
         existing = conn.execute(query, {'uid': current_user.id, 'tid': tool_id}).fetchone()
@@ -214,10 +230,9 @@ def toggle_favorite(tool_id):
 # --- ROTAS DO PAINEL DE ADMIN ---
 @app.route('/api/admin/tools/add', methods=['POST'])
 def add_tool():
-    data = request.json
-    logo_path = data.get('logo_url', '')
-    if not logo_path:
-        logo_path = find_and_download_logo(data['name'])
+    if not engine: return jsonify({"error": "Database not configured"}), 500
+    data = request.json; logo_path = data.get('logo_url', '')
+    if not logo_path: logo_path = find_and_download_logo(data['name'])
     date_added_str = datetime.now()
     with engine.connect() as conn:
         try:
@@ -229,6 +244,7 @@ def add_tool():
 
 @app.route('/api/admin/tools/batch-add', methods=['POST'])
 def batch_add_tools():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     data = request.json['data'].strip(); lines = data.split('\n'); tools_added = 0; logos_found = 0; date_added_str = datetime.now()
     with engine.connect() as conn:
         for line in lines:
@@ -248,12 +264,14 @@ def batch_add_tools():
 
 @app.route('/api/admin/tools/delete/<int:tool_id>', methods=['DELETE'])
 def delete_tool(tool_id):
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         conn.execute(text('DELETE FROM tools WHERE id = :id'), {'id': tool_id}); conn.commit()
     return jsonify({'success': True})
 
 @app.route('/api/prompts', methods=['GET'])
 def get_prompts():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     with engine.connect() as conn:
         try:
             prompts = conn.execute(text('SELECT * FROM prompts ORDER BY category, title ASC')).fetchall()
@@ -263,6 +281,7 @@ def get_prompts():
 
 @app.route('/api/prompts/add', methods=['POST'])
 def add_prompt():
+    if not engine: return jsonify({"error": "Database not configured"}), 500
     data = request.json; date_added_str = datetime.now()
     with engine.connect() as conn:
         conn.execute(text('INSERT INTO prompts (title, category, prompt_text, notes, date_added) VALUES (:title, :category, :prompt_text, :notes, :date_added)'),{'title': data['title'], 'category': data['category'], 'prompt_text': data['prompt_text'], 'notes': data.get('notes', ''), 'date_added': date_added_str}); conn.commit()

@@ -140,7 +140,12 @@ def get_glossary_terms():
         return jsonify({"error": str(e)}), 500
 
 # --- ROTA DE NOTÍCIAS ---
-NEWS_FEEDS = { 'Google News (IA)': '...', 'Ben\'s Bites': '...' }
+NEWS_FEEDS = {
+    'Reuters Technology': 'http://feeds.reuters.com/reuters/technologyNews',
+    'Google News (IA)': 'https://news.google.com/rss/search?q=Intelig%C3%AAncia+Artificial&hl=pt-BR&gl=BR&ceid=BR:pt-419',
+    'Ben\'s Bites': 'https://bensbites.beehiiv.com/rss',
+}
+
 news_cache = {'articles': [], 'last_updated': 0}
 @app.route('/api/news', methods=['GET'])
 def get_news():
